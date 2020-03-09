@@ -1,0 +1,33 @@
+server:
+  port: 18081
+spring:
+  application:
+    name: user
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/mininote_user?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+    username: root
+    password: root
+eureka:
+  client:
+    service-url:
+      defaultZone: http://127.0.0.1:7001/eureka
+  instance:
+    prefer-ip-address: true
+feign:
+  hystrix:
+    enabled: true
+#超时配置
+ribbon:
+  # Feign请求读取数据超时时间
+  ReadTimeout: 300000
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            # 超时时间，默认1000ms
+            timeoutInMilliseconds: 10000
+            #  隔离模式使用信号量隔离SEMAPHORE 默认值是线程隔离THREAD
+            strategy: SEMAPHORE

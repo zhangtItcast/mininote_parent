@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: gateway-web
+  cloud:
+    gateway:
+      #添加此全局跨域过滤器后，Controller中就不再需要@CrossOrigin注解
+      globalcors:
+        cors-configurations:
+          '[/**]': # 匹配所有请求
+            allowedOrigins: "*" #跨域处理 允许所有的域
+            allowedMethods: # 支持的方法
+              - GET
+              - POST
+              - PUT
+              - DELETE
+      routes:
+        - id: mininote_user_route  #路由唯一标识-user
+          uri: lb://user # 发送给注册服务名字为user的服务器
+          # 路由断言：路由拦截规则
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1  # 去除路径前缀过滤器，一个"/"识别为一个路径
+            - name: RequestRateLimiter # 请求数限流 名字不能随便写 ，使用默认的facatory
+              args:
+                # 用于通过SPEL表达式来指定使用哪一个KeyResolver，需要先在启动引导类中定义
+                key-resolver: "#{@ipKeyResolver}"
+                # 是您希望允许用户每秒执行多少请求，而不会丢弃任何请求。这是令牌桶填充的速率
+                redis-rate-limiter.replenishRate: 1
+                # 是指令牌桶的容量，允许在一秒钟内完成的最大请求数,将此值设置为零将阻止所有请求。
+                redis-rate-limiter.burstCapacity: 2
+        - id: mininote_notepad_route  #路由唯一标识-user
+          uri: lb://notepad # 发送给注册服务名字为user的服务器
+          # 路由断言：路由拦截规则
+          predicates:
+            - Path=/api/notepad/**
+          filters:
+            - StripPrefix=1  # 去除路径前缀过滤器，一个"/"识别为一个路径webNotepad
+        - id: mininote_webnotepad_route  #路由唯一标识-user
+          uri: lb://notepad-web # 发送给注册服务名字为user的服务器
+          # 路由断言：路由拦截规则
+          predicates:
+            - Path=/api/webNotepad/**,/static/js/**,/static/pages/**
+          filters:
+            - StripPrefix=1  # 去除路径前缀过滤器，一个"/"识别为一个路径webNotepad
+  redis:
+    host: localhost
+server:
+  port: 8001
+eureka:
+  client:
+    service-url:
+      defaultZone: http://127.0.0.1:7001/eureka
+  instance:
+    prefer-ip-address: true

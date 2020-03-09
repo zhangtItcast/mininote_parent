@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<!--<html xmlns:th="http://www.thymeleaf.org">-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>记事本</title>
+    <style type="text/css">
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        .title {
+            font-family: "宋体";
+            color: #FFFFFF;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* 使用css3的transform来实现 */
+            font-size: 36px;
+            height: 40px;
+            width: 30%;
+        }
+        #head {
+            height: 120px;
+            width: 100%;
+            background-color: #66CCCC;
+            text-align: center;
+            position: relative;
+        }
+        #left {
+            float: left;
+            width: 50%;
+            /*border: red 1px solid;*/
+        }
+        #right {
+            float: right;
+            width: 49.5%;
+            border: red 1px solid;
+        }
+        .updateTime {
+            font-family: "宋体";
+            font-size: 17px;
+        }
+        .createdTime {
+            font-family: "宋体";
+            font-size: 17px;
+        }
+
+        .context {
+            font-family: "宋体";
+            font-size: 18px;
+        }
+        #inp{
+            width: 90%;
+            height: 42px;
+            border-radius: 7px;
+            text-indent: 2.5rem;
+        }
+        #btn{
+            width: 10%;
+            height: 42px;
+            font-size: 25px;
+            margin-top: 3px;
+            background-color: darkorange;
+            border-radius: 7px;
+            text-indent: 2.5rem;
+        }
+
+        .r_input input {
+            width: 100%;
+            height: 50px;
+            border: greenyellow solid 1px;
+            text-align: center;
+            border-radius: 7px;
+        }
+
+        .r_textarea textarea {
+            border: greenyellow solid 1px;
+            width: 100%;
+            height: 400px;
+            border-radius: 7px;
+        }
+
+        .r_commit button {
+            width: 100%;
+            height: 45px;
+            background-color: #ee7700;
+            border: none;
+            color: white;
+            font-size: 18px;
+        }
+
+        .context .delete {
+            font-family: "宋体";
+            background-color: #ff0000;
+            border: none;
+            color: white;
+            border-radius: 3px;
+            float: right;
+            font-size: 18px;
+        }
+        .context .update {
+            font-family: "宋体";
+            background-color: #ee7700;
+            border: none;
+            color: white;
+            border-radius: 3px;
+            float: right;
+            font-size: 18px;
+            margin-right: 10px;
+        }
+        .l_msg {
+            width: 100%;
+            border: black 1px solid;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="header" id="head">
+        <div class="title">记事本</div>
+    </div>
+    <div id="warp">
+        <div id="left">
+            <!--搜索框-->
+            <div class="search">
+                <input id="inp" v-model="key" placeholder="请输入关键字搜索"/>
+                <a href="javascript:void(0)" @click="search" id="btn"> 搜 索 </a>
+            </div>
+            <div class="l_msg" v-for="(res,index) in lately">
+                <!--创建时间-->
+                <span class="createdTime">
+                    创建时间: {{res.createDate.substring(0,10)}}
+                </span>
+                    &nbsp;&nbsp;&nbsp;&nbsp;
+                    <!--修改时间 2020-02-27T08:00:00.000+08:00 , 截取前10位-->
+                <span class="updateTime">
+                 最近修改时间: {{res.updateDate.substring(0,10)}}
+                </span>
+                <div class="context">
+                    <span>标题: {{res.title}}</span>
+                    <a href="javascript:void(0)">
+                        <button class="delete" @click="deleteContext(res)">删 除</button>
+                    </a>
+                    <a href="javascript:void(0)">
+                        <button class="update" @click="updateContext(res)">修 改</button>
+                    </a>
+                    <a href="javascript:void(0)">
+                        <button class="update" @click="searchContext(res)">查 看</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <!--编辑框-->
+        <div id="right">
+            <!--标题-->
+            <div class="r_input">
+                <input placeholder="标题" v-model="updateRes.title">
+            </div>
+            <!--内容-->
+            <div class="r_textarea">
+                <textarea placeholder="context内容" v-model="updateRes.context">{{updateRes.context}}</textarea>
+            </div>
+            <div style="text-align: center;color: red;">{{msg}}</div>
+            <!--保存-->
+            <div class="r_commit">
+                <a href="javascript:void(0)">
+                    <button @click="save()">{{button}}</button>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="/static/js/vuejs-2.5.16.js"></script>
+<script src="/static/js/axios-0.18.0.js"></script>
+<!--thymeleaf与javascript整合-->
+<!--<script type="text/javascript" th:inline="javascript">-->
+<script type="text/javascript">
+    var app = new Vue({
+        el: "#app", // 绑定页面元素id
+        data:{
+            msg:"", // 修改保存提示信息
+            key:"", // 搜索关键字
+            updateRes:{
+                id:"",
+                title:"",
+                context:"",
+            }, //编辑框内容
+            title:"",   // 编辑框标题
+            context:"",   // 编辑框内容
+            button:"保 存",
+            lately:[] // 最近使用
+        },
+        methods:{
+            // 打开页面默认查询最近10条
+            findByDate() {
+                axios.get("/api/webNotepad/findByDate").then(function (result) {
+                    if (result.data.flag){
+                        app.lately = result.data.data;
+                    }
+               });
+            },
+
+            // 删除
+            deleteContext(res){
+                var id = res.id;
+                var flag = confirm("确定要修改吗?");
+                if (flag){
+                    axios.get('/api/webNotepad/delete/' + id).then(result => {
+                        if (result.data.flag){
+                            alert(result.data.message);
+                            app.findByDate();
+                    }
+                    });
+                }
+            },
+
+            //修改   res:当前要修改的笔记
+            updateContext(res){
+                app.button = "修 改";
+                // app.title = res.title;  // 修改后的标题
+                // app.context = res.context;  //修改后的内容
+                app.updateRes.id = res.id;
+                app.updateRes.title = res.title;
+                app.updateRes.context = res.context;
+            },
+            //查看
+            searchContext(res){
+                app.button = "返 回"; //重置按钮功能
+                app.updateRes.title = res.title;
+                app.updateRes.context = res.context;
+            },
+            // 保存或修改
+            save(){
+                //
+                if (app.button == "返 回"){
+                    app.button = "保 存"; //重置按钮功能
+                    app.updateRes.id = ""; //重置id
+                    app.updateRes.title = "";
+                    app.updateRes.context = "";
+                }
+                if (app.button == "修 改") {
+                   var flag = confirm("确定要修改吗?");
+                   if (flag){
+                       axios.post("/api/webNotepad/update", app.updateRes).then(result=>{
+                           app.msg = result.data.message;   //修改提示信息
+                           app.button = "保 存"; //重置按钮功能
+                           app.updateRes.id = ""; //重置id
+                           app.updateRes.title = "";
+                           app.updateRes.context = "";
+                           if (result.data.flag){
+                               app.findByDate();
+                           }
+                       });
+                   }
+                }else {
+                    // 保存
+                    axios.post("/api/webNotepad/save", app.updateRes).then(result=>{
+                        app.msg = result.data.message; //保存提示信息
+                        app.updateRes.title = "";
+                        app.updateRes.context = "";
+                        if (result.data.flag){
+                            app.findByDate();
+                        }
+                    });
+                }
+            },
+            //关键字搜索
+            search() {
+                axios.get("/api/webNotepad/search?key=" + app.key).then(result=>{
+                    if (result.data.flag){
+                        app.lately = result.data.data;
+                    }
+                });
+            }
+        },
+        // 消息钩子, 钩子函数, 页面初始化完毕后调用
+        created:function () {
+            this.findByDate();
+        }
+    });
+</script>
+</body>
+</html>
